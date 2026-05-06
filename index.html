@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Advisor Sales Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.5rem; }
+        .input-field { background: #0f172a; border: 1px solid #334155; border-radius: 0.75rem; padding: 0.75rem; width: 100%; color: white; outline: none; transition: border-color 0.2s; font-size: 1rem; }
+        .input-field:focus { border-color: #3b82f6; ring: 2px solid #3b82f6; }
+        
+        .toggle-btn { padding: 0.75rem; border-radius: 0.75rem; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; transition: all 0.2s; border: 1px solid #334155; flex: 1; text-align: center; cursor: pointer; }
+        .toggle-no.active { background: #ef4444; color: white; border-color: #ef4444; }
+        .toggle-yes.active { background: #22c55e; color: white; border-color: #22c55e; }
+
+        .day-column { flex: 1; min-width: 180px; border-right: 1px solid rgba(255,255,255,0.05); }
+        .day-column:last-child { border-right: none; }
+        .progress-container { width: 100%; background: #1e293b; border-radius: 999px; overflow: hidden; }
+        
+        .stat-pill { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+        .pill-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .pill-emerald { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .pill-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .pill-slate { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+        @keyframes slide-in-cat {
+            0% { transform: translateY(100%) rotate(10deg); }
+            10% { transform: translateY(0%) rotate(0deg); }
+            90% { transform: translateY(0%) rotate(0deg); }
+            100% { transform: translateY(100%) rotate(10deg); }
+        }
+        .cat-celebration { position: fixed; bottom: -20px; right: 50px; z-index: 100; display: none; flex-direction: column; align-items: center; }
+        .cat-celebration.active { display: flex; animation: slide-in-cat 4s ease-in-out forwards; }
+        
+        .speech-bubble {
+            background: white; color: #1e293b; padding: 1rem 1.5rem; border-radius: 1.5rem; font-weight: 900; margin-bottom: -10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative; font-size: 1.25rem; white-space: nowrap;
+        }
+        .speech-bubble:after { content: ''; position: absolute; bottom: -10px; right: 40px; border-width: 10px 10px 0; border-style: solid; border-color: white transparent; }
+
+        .snapshot-preview { background: #0f172a; border: 2px solid #3b82f6; border-radius: 1rem; padding: 2rem; color: white; max-height: 85vh; overflow-y: auto; }
+    </style>
+</head>
+<body class="p-4 md:p-8 pb-32">
+
+    <div id="catBox" class="cat-celebration">
+        <div class="speech-bubble">GREAT JOB BETO! 🐱🎉</div>
+        <div class="text-9xl">😺</div>
+    </div>
+
+    <div id="app" class="max-w-6xl mx-auto space-y-6">
+        <!-- WEEKLY PROGRESS -->
+        <div class="glass-card p-6 border-b-4 border-indigo-500 bg-indigo-500/5">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+                <div class="md:col-span-8">
+                    <h2 class="text-indigo-400 text-xs font-black uppercase tracking-widest">Weekly Revenue Target ($30,000)</h2>
+                    <div class="flex items-baseline gap-4">
+                        <div class="text-4xl font-black text-white" id="weekly-total-display">$0.00</div>
+                        <div id="weekly-percent-display" class="text-2xl font-black text-indigo-500">0%</div>
+                    </div>
+                </div>
+                <div class="md:col-span-4 grid grid-cols-2 gap-4 border-l border-slate-700 pl-6">
+                    <div>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase">Weekly CP Ratio</p>
+                        <p class="text-xl font-black text-emerald-400" id="weekly-avg-cp">0%</p>
+                    </div>
+                    <div>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase">Weekly Booking</p>
+                        <p class="text-xl font-black text-amber-400" id="weekly-avg-booking">0%</p>
+                    </div>
+                </div>
+            </div>
+            <div class="progress-container h-3">
+                <div id="weekly-progress-bar" class="h-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-1000" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 glass-card p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-blue-400 text-xs font-bold uppercase tracking-widest mb-1">Today's Revenue ($6k Goal)</p>
+                        <div class="text-3xl font-extrabold" id="daily-sold-display">$0.00</div>
+                    </div>
+                    <button onclick="generateSnapshot()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-lg active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        Close Out Day
+                    </button>
+                </div>
+                <div class="flex justify-between items-center mb-2">
+                    <span id="percent-display" class="text-2xl font-black text-blue-500">0%</span>
+                </div>
+                <div class="progress-container h-4">
+                    <div id="goal-progress-bar" class="h-full bg-blue-500 transition-all duration-1000" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="glass-card p-6 flex justify-between items-center border-l-4 border-blue-500 bg-blue-500/5">
+                <div>
+                    <p class="text-blue-400 text-[10px] font-bold uppercase mb-1">Today's Call Leads</p>
+                    <div class="text-4xl font-black text-white" id="call-count">0</div>
+                </div>
+                <button onclick="openCallModal()" class="bg-blue-600 hover:bg-blue-500 text-white w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg transition-transform active:scale-95">+</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8 glass-card p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-blue-400">Log Repair Order</h3>
+                    <select id="daySelector" class="bg-slate-800 text-xs font-bold text-slate-300 border-none rounded px-3 py-1 outline-none">
+                        <option value="0">Monday</option>
+                        <option value="1">Tuesday</option>
+                        <option value="2">Wednesday</option>
+                        <option value="3">Thursday</option>
+                        <option value="4">Friday</option>
+                    </select>
+                </div>
+                <form id="salesForm" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">RO Number</label>
+                            <input type="text" id="roNumber" class="input-field" placeholder="RO #" required>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Discovery (Total Quoted)</label>
+                            <input type="number" id="discoveredSales" step="0.01" class="input-field" placeholder="$0.00" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-700">
+                            <label class="block text-[10px] font-bold text-emerald-500 uppercase mb-2">Sold: Customer Pay</label>
+                            <input type="number" id="soldCP" step="0.01" class="input-field" placeholder="$0.00">
+                        </div>
+                        <div class="p-4 bg-slate-900/50 rounded-2xl border border-slate-700">
+                            <label class="block text-[10px] font-bold text-purple-400 uppercase mb-2">Sold: Insurance/War.</label>
+                            <input type="number" id="soldIns" step="0.01" class="input-field" placeholder="$0.00">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl transition-all">
+                        Add Entry
+                    </button>
+                </form>
+            </div>
+
+            <div class="lg:col-span-4 glass-card p-6 bg-slate-800/40">
+                <h3 class="text-slate-500 text-[10px] font-bold uppercase mb-4">Daily Performance</h3>
+                <div class="space-y-4">
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block mb-1">Discovered Today</span>
+                        <span class="text-3xl font-black text-indigo-400" id="stat-discovered">$0.00</span>
+                    </div>
+                    <div class="pt-4 border-t border-slate-700">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block mb-1">Sales Close Ratio</span>
+                        <span class="text-4xl font-black text-blue-400" id="stat-cr">0%</span>
+                    </div>
+                    <div class="pt-4 border-t border-slate-700">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block mb-1">Today's Booking Rate</span>
+                        <span class="text-2xl font-black text-amber-400" id="stat-booking">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card p-4 overflow-x-auto">
+            <h3 class="text-slate-500 text-[10px] font-bold uppercase mb-4 px-2">Weekly Snapshot (Performance Summary)</h3>
+            <div id="weekGrid" class="flex min-w-full"></div>
+        </div>
+    </div>
+
+    <!-- CALL MODAL -->
+    <div id="callModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card bg-slate-900 w-full max-w-md p-8">
+            <h3 class="text-xl font-bold text-blue-400 mb-6">Log Lead Call</h3>
+            <form id="callForm" class="space-y-4">
+                <input type="text" id="callCustName" class="input-field" placeholder="Customer Name" required>
+                <input type="text" id="callVehicle" class="input-field" placeholder="Vehicle" required>
+                <div class="flex gap-2">
+                    <div id="btnNo" onclick="setAppt(false)" class="toggle-btn toggle-no active">No Appt</div>
+                    <div id="btnYes" onclick="setAppt(true)" class="toggle-btn toggle-yes">Appt Set</div>
+                </div>
+                <div class="pt-6 flex gap-3">
+                    <button type="button" onclick="closeCallModal()" class="flex-1 px-4 py-3 border border-slate-700 rounded-xl text-sm font-bold text-slate-400">Cancel</button>
+                    <button type="submit" class="flex-1 px-4 py-3 bg-blue-600 rounded-xl text-sm font-bold text-white">Save Lead</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SNAPSHOT PREVIEW MODAL -->
+    <div id="snapshotModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl">
+            <div id="snapshotContent" class="snapshot-preview shadow-2xl"></div>
+            <div class="mt-6 flex gap-4">
+                <button onclick="closeSnapshot()" class="flex-1 bg-slate-800 text-white py-4 rounded-2xl font-bold uppercase tracking-widest">Back</button>
+                <button onclick="saveSnapshotAsPNG()" class="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-bold uppercase tracking-widest shadow-lg active:scale-95">Save as Image</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HIDDEN CANVAS FOR DRAWING -->
+    <canvas id="snapshotCanvas" style="display:none;"></canvas>
+
+    <script>
+        const WEEKLY_GOAL = 30000;
+        const DAILY_GOAL = 6000;
+
+        let weekData = [
+            { day: 'Monday', history: [], calls: [] },
+            { day: 'Tuesday', history: [], calls: [] },
+            { day: 'Wednesday', history: [], calls: [] },
+            { day: 'Thursday', history: [], calls: [] },
+            { day: 'Friday', history: [], calls: [] }
+        ];
+        
+        let currentDayIndex = Math.min(4, Math.max(0, new Date().getDay() - 1));
+        document.getElementById('daySelector').value = currentDayIndex;
+        let currentApptStatus = false;
+        let goalMetToday = false;
+
+        function setAppt(val) {
+            currentApptStatus = val;
+            document.getElementById('btnNo').classList.toggle('active', !val);
+            document.getElementById('btnYes').classList.toggle('active', val);
+        }
+
+        function openCallModal() { document.getElementById('callModal').classList.remove('hidden'); }
+        function closeCallModal() { document.getElementById('callModal').classList.add('hidden'); document.getElementById('callForm').reset(); setAppt(false); }
+
+        function triggerCelebration() {
+            const cat = document.getElementById('catBox');
+            cat.classList.add('active');
+            setTimeout(() => cat.classList.remove('active'), 4000);
+        }
+
+        function getWeeklySold() {
+            return weekData.reduce((acc, d) => acc + d.history.reduce((s, h) => s + h.soldCP + h.soldIns, 0), 0);
+        }
+
+        function updateUI() {
+            let weeklySoldTotal = getWeeklySold();
+            let weeklyDisc = 0, weeklyCP = 0, weeklyCalls = 0, weeklyAppts = 0;
+
+            weekData.forEach(d => {
+                weeklyDisc += d.history.reduce((s, h) => s + h.discovered, 0);
+                weeklyCP += d.history.reduce((s, h) => s + h.soldCP, 0);
+                weeklyCalls += d.calls.length;
+                weeklyAppts += d.calls.filter(c => c.appt).length;
+            });
+
+            document.getElementById('weekly-total-display').innerText = '$' + weeklySoldTotal.toLocaleString(undefined, {minimumFractionDigits: 2});
+            const wPercent = Math.min(100, (weeklySoldTotal / WEEKLY_GOAL) * 100);
+            document.getElementById('weekly-percent-display').innerText = wPercent.toFixed(1) + '%';
+            document.getElementById('weekly-progress-bar').style.width = wPercent + '%';
+            
+            document.getElementById('weekly-avg-cp').innerText = weeklyDisc > 0 ? ((weeklyCP/weeklyDisc)*100).toFixed(0) + '%' : '0%';
+            document.getElementById('weekly-avg-booking').innerText = weeklyCalls > 0 ? ((weeklyAppts/weeklyCalls)*100).toFixed(0) + '%' : '0%';
+
+            const cur = weekData[currentDayIndex];
+            const dSold = cur.history.reduce((s, h) => s + h.soldCP + h.soldIns, 0);
+            const dDisc = cur.history.reduce((s, h) => s + h.discovered, 0);
+            const dCalls = cur.calls.length;
+            const dAppts = cur.calls.filter(c => c.appt).length;
+            
+            document.getElementById('daily-sold-display').innerText = '$' + dSold.toLocaleString(undefined, {minimumFractionDigits: 2});
+            const dPercent = Math.min(100, (dSold / DAILY_GOAL) * 100);
+            document.getElementById('percent-display').innerText = dPercent.toFixed(1) + '%';
+            document.getElementById('goal-progress-bar').style.width = dPercent + '%';
+
+            document.getElementById('stat-discovered').innerText = '$' + dDisc.toLocaleString();
+            document.getElementById('stat-cr').innerText = dDisc > 0 ? ((dSold/dDisc)*100).toFixed(1) + '%' : '0%';
+            document.getElementById('stat-booking').innerText = dCalls > 0 ? ((dAppts/dCalls)*100).toFixed(0) + '%' : '0%';
+            document.getElementById('call-count').innerText = dCalls;
+
+            if (dSold >= DAILY_GOAL && !goalMetToday) {
+                goalMetToday = true;
+                triggerCelebration();
+            } else if (dSold < DAILY_GOAL) {
+                goalMetToday = false;
+            }
+
+            const weekGrid = document.getElementById('weekGrid');
+            weekGrid.innerHTML = weekData.map((d, i) => {
+                const s = d.history.reduce((acc, h) => acc + h.soldCP + h.soldIns, 0);
+                const disc = d.history.reduce((acc, h) => acc + h.discovered, 0);
+                const calls = d.calls.length;
+                const appts = d.calls.filter(c => c.appt).length;
+                const isSelected = i === currentDayIndex;
+                const progressWidth = Math.min(100, (s / DAILY_GOAL) * 100);
+
+                return `
+                    <div class="day-column px-4 py-3 ${isSelected ? 'bg-blue-600/10' : ''}">
+                        <div class="text-[10px] font-black ${isSelected ? 'text-blue-400' : 'text-slate-500'} uppercase">${d.day}</div>
+                        <div class="text-lg font-bold text-white mt-1">$${s.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                        <div class="w-full bg-slate-800 h-1 mt-1 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-500" style="width: ${progressWidth}%"></div>
+                        </div>
+                        <div class="mt-4 space-y-2 border-t border-slate-800 pt-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[8px] text-slate-500 uppercase">Poten.</span>
+                                <span class="stat-pill pill-slate">$${disc.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[8px] text-slate-500 uppercase">Sales CR</span>
+                                <span class="stat-pill pill-emerald">${disc > 0 ? ((s/disc)*100).toFixed(0) : 0}%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[8px] text-slate-500 uppercase">Booking</span>
+                                <span class="stat-pill pill-amber">${calls > 0 ? ((appts/calls)*100).toFixed(0) : 0}%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[8px] text-slate-500 uppercase">Leads</span>
+                                <span class="stat-pill pill-blue">${calls} Calls</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function generateSnapshot() {
+            const cur = weekData[currentDayIndex];
+            const dSold = cur.history.reduce((s, h) => s + h.soldCP + h.soldIns, 0);
+            const dDisc = cur.history.reduce((s, h) => s + h.discovered, 0);
+            const wSold = getWeeklySold();
+            const wPercent = ((wSold / WEEKLY_GOAL) * 100).toFixed(1);
+            const dCalls = cur.calls.length;
+            const dAppts = cur.calls.filter(c => c.appt).length;
+
+            const wDisc = weekData.reduce((acc, d) => acc + d.history.reduce((s, h) => s + h.discovered, 0), 0);
+            const wCalls = weekData.reduce((acc, d) => acc + d.calls.length, 0);
+            const wAppts = weekData.reduce((acc, d) => acc + d.calls.filter(c => c.appt).length, 0);
+
+            let html = `
+                <div class="text-center mb-8">
+                    <h2 class="text-emerald-500 font-black uppercase tracking-widest text-sm mb-2">Daily Close Out Report</h2>
+                    <h1 class="text-4xl font-black">${cur.day} Summary</h1>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <div class="text-[10px] text-slate-400 font-black uppercase">Daily Revenue</div>
+                        <div class="text-2xl font-black text-white">$${dSold.toLocaleString()}</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <div class="text-[10px] text-slate-400 font-black uppercase">Daily Discovered</div>
+                        <div class="text-2xl font-black text-indigo-400">$${dDisc.toLocaleString()}</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <div class="text-[10px] text-slate-400 font-black uppercase">Close Ratio</div>
+                        <div class="text-2xl font-black text-blue-400">${dDisc > 0 ? ((dSold/dDisc)*100).toFixed(1) : 0}%</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                         <div class="text-[10px] text-slate-400 font-black uppercase">Booking Rate</div>
+                        <div class="text-2xl font-black text-amber-400">${dCalls > 0 ? ((dAppts/dCalls)*100).toFixed(0) : 0}%</div>
+                    </div>
+                </div>
+            `;
+
+            if (currentDayIndex === 4) {
+                html += `
+                <div class="border-t-2 border-dashed border-slate-700 my-8 pt-8">
+                    <div class="text-center mb-6">
+                        <h2 class="text-indigo-400 font-black uppercase tracking-widest text-sm mb-1">Weekly Finale</h2>
+                        <h1 class="text-3xl font-black text-white">Full Week Recap</h1>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="bg-indigo-600/20 p-6 rounded-2xl border-2 border-indigo-500/30">
+                            <div class="text-[10px] text-indigo-400 font-black uppercase mb-1">Total Weekly Sold</div>
+                            <div class="text-3xl font-black text-white">$${wSold.toLocaleString()}</div>
+                        </div>
+                        <div class="bg-slate-800/80 p-6 rounded-2xl border border-slate-600">
+                            <div class="text-[10px] text-slate-400 font-black uppercase mb-1">Total Weekly Discovered</div>
+                            <div class="text-3xl font-black text-white">$${wDisc.toLocaleString()}</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <div class="text-[10px] text-slate-400 font-black uppercase">Avg Close Ratio</div>
+                                <div class="text-2xl font-black text-blue-400">${wDisc > 0 ? ((wSold/wDisc)*100).toFixed(1) : 0}%</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[10px] text-slate-400 font-black uppercase">Avg Booking</div>
+                                <div class="text-2xl font-black text-amber-400">${wCalls > 0 ? ((wAppts/wCalls)*100).toFixed(0) : 0}%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            } else {
+                html += `
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-8 flex justify-between items-center">
+                    <div>
+                        <div class="text-[10px] text-slate-400 font-black uppercase">Lead Detail</div>
+                        <div class="text-lg font-black text-white">${dAppts} Appointments Set</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-black text-white">${dCalls}</div>
+                        <div class="text-[8px] text-slate-500 font-black uppercase">Incoming Calls</div>
+                    </div>
+                </div>
+                `;
+            }
+
+            html += `
+                <div class="mb-4">
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="text-[10px] text-indigo-400 font-black uppercase">Final Weekly Goal ($30k)</div>
+                        <div class="text-xl font-black text-indigo-400">${wPercent}%</div>
+                    </div>
+                    <div class="progress-container h-3">
+                        <div class="h-full bg-indigo-500" style="width: ${Math.min(100, wPercent)}%"></div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('snapshotContent').innerHTML = html;
+            document.getElementById('snapshotModal').classList.remove('hidden');
+        }
+
+        function saveSnapshotAsPNG() {
+            const canvas = document.getElementById('snapshotCanvas');
+            const ctx = canvas.getContext('2d');
+            const isFriday = currentDayIndex === 4;
+            canvas.width = 600;
+            canvas.height = isFriday ? 1200 : 900; 
+
+            const cur = weekData[currentDayIndex];
+            const dSold = cur.history.reduce((s, h) => s + h.soldCP + h.soldIns, 0);
+            const dDisc = cur.history.reduce((s, h) => s + h.discovered, 0);
+            const wSold = getWeeklySold();
+            const wDisc = weekData.reduce((acc, d) => acc + d.history.reduce((s, h) => s + h.discovered, 0), 0);
+            const wPercent = Math.min(100, ((wSold / WEEKLY_GOAL) * 100));
+            
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 10;
+            ctx.strokeRect(5, 5, canvas.width-10, canvas.height-10);
+
+            function fillRoundRect(x, y, w, h, r) {
+                ctx.beginPath(); ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r); ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h); ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath(); ctx.fill();
+            }
+
+            ctx.fillStyle = '#10b981';
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('PERFORMANCE SUMMARY', canvas.width/2, 60);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'black 48px Inter, sans-serif';
+            ctx.fillText(cur.day.toUpperCase(), canvas.width/2, 120);
+
+            ctx.fillStyle = '#1e293b';
+            fillRoundRect(50, 160, 500, 120, 20);
+            ctx.fillStyle = '#60a5fa';
+            ctx.font = 'bold 14px Inter, sans-serif';
+            ctx.fillText('DAILY SOLD', canvas.width/2, 195);
+            ctx.fillStyle = 'white';
+            ctx.font = 'black 54px Inter, sans-serif';
+            ctx.fillText('$' + dSold.toLocaleString(), canvas.width/2, 255);
+
+            ctx.fillStyle = '#1e293b';
+            fillRoundRect(50, 300, 500, 100, 20);
+            ctx.fillStyle = '#818cf8';
+            ctx.font = 'bold 14px Inter, sans-serif';
+            ctx.fillText('DAILY DISCOVERED', canvas.width/2, 335);
+            ctx.fillStyle = 'white';
+            ctx.font = 'black 36px Inter, sans-serif';
+            ctx.fillText('$' + dDisc.toLocaleString(), canvas.width/2, 380);
+
+            if (isFriday) {
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(50, 440); ctx.lineTo(550, 440); ctx.stroke();
+
+                ctx.fillStyle = '#6366f1';
+                ctx.font = 'black 30px Inter, sans-serif';
+                ctx.fillText('WEEKLY FINALE', canvas.width/2, 490);
+
+                ctx.fillStyle = '#4f46e5';
+                fillRoundRect(50, 530, 500, 140, 20);
+                ctx.fillStyle = '#a5b4fc';
+                ctx.font = 'bold 16px Inter, sans-serif';
+                ctx.fillText('TOTAL WEEKLY REVENUE', canvas.width/2, 570);
+                ctx.fillStyle = 'white';
+                ctx.font = 'black 64px Inter, sans-serif';
+                ctx.fillText('$' + wSold.toLocaleString(), canvas.width/2, 640);
+
+                ctx.fillStyle = '#1e293b';
+                fillRoundRect(50, 690, 500, 100, 20);
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 14px Inter, sans-serif';
+                ctx.fillText('TOTAL WEEKLY DISCOVERED', canvas.width/2, 725);
+                ctx.fillStyle = 'white';
+                ctx.font = 'black 36px Inter, sans-serif';
+                ctx.fillText('$' + wDisc.toLocaleString(), canvas.width/2, 770);
+
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#6366f1';
+                ctx.font = 'bold 14px Inter, sans-serif';
+                ctx.fillText('WEEKLY GOAL PROGRESS ($30,000)', 50, 850);
+                ctx.textAlign = 'right';
+                ctx.fillText(wPercent.toFixed(1) + '%', 550, 850);
+                ctx.fillStyle = '#1e293b';
+                fillRoundRect(50, 870, 500, 30, 15);
+                ctx.fillStyle = '#6366f1';
+                fillRoundRect(50, 870, Math.max(30, (wPercent/100) * 500), 30, 15);
+
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'white';
+                ctx.font = 'italic bold 28px Inter, sans-serif';
+                ctx.fillText('LEGENDARY WEEK, BETO! 🏆', canvas.width/2, 1050);
+            } else {
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#6366f1';
+                ctx.font = 'bold 14px Inter, sans-serif';
+                ctx.fillText('WEEKLY GOAL PROGRESS', 50, 710);
+                ctx.textAlign = 'right';
+                ctx.fillText(wPercent.toFixed(1) + '%', 550, 710);
+                ctx.fillStyle = '#1e293b';
+                fillRoundRect(50, 730, 500, 30, 15);
+                ctx.fillStyle = '#6366f1';
+                fillRoundRect(50, 730, Math.max(30, (wPercent/100) * 500), 30, 15);
+                
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#475569';
+                ctx.font = 'italic bold 20px Inter, sans-serif';
+                ctx.fillText('BETO IS KILLING IT! 🚀', canvas.width/2, 840);
+            }
+
+            const link = document.createElement('a');
+            link.download = `Beto_Report_${cur.day}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            closeSnapshot();
+        }
+
+        function closeSnapshot() { document.getElementById('snapshotModal').classList.add('hidden'); }
+
+        document.getElementById('daySelector').addEventListener('change', (e) => {
+            currentDayIndex = parseInt(e.target.value);
+            const dSold = weekData[currentDayIndex].history.reduce((s, h) => s + h.soldCP + h.soldIns, 0);
+            goalMetToday = dSold >= DAILY_GOAL; 
+            updateUI();
+        });
+
+        document.getElementById('salesForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const ro = document.getElementById('roNumber').value;
+            const discovered = parseFloat(document.getElementById('discoveredSales').value) || 0;
+            const soldCP = parseFloat(document.getElementById('soldCP').value) || 0;
+            const soldIns = parseFloat(document.getElementById('soldIns').value) || 0;
+            weekData[currentDayIndex].history.push({ ro, discovered, soldCP, soldIns });
+            updateUI();
+            e.target.reset();
+            document.getElementById('roNumber').focus();
+        });
+
+        document.getElementById('callForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            weekData[currentDayIndex].calls.push({ 
+                name: document.getElementById('callCustName').value, 
+                vehicle: document.getElementById('callVehicle').value, 
+                appt: currentApptStatus 
+            });
+            updateUI();
+            closeCallModal();
+        });
+
+        updateUI();
+    </script>
+</body>
+</html>
